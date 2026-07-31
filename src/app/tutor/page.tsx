@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useTutorChatData } from '@/services/mock-study-data';
+import { useTutorChatData } from '@/services/tutor-service';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,7 +34,7 @@ export default function TutorPage() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-4 animate-in fade-in duration-300">
       {/* Mobile Tab Switcher */}
       <div className="flex md:hidden rounded-xl bg-slate-900 p-1 border border-slate-800">
         <button
@@ -55,17 +55,17 @@ export default function TutorPage() {
         </button>
       </div>
 
-      {/* Split Screen Container */}
+      {/* Split Screen Container (Responsive Max-Height Fits Screen) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         {/* Left Pane: Chat Interface */}
         <div
-          className={`space-y-4 ${
+          className={`w-full ${
             mobileTab === 'mindmap' ? 'hidden md:block' : 'block'
           }`}
         >
-          <Card className="h-[640px] flex flex-col justify-between p-0 overflow-hidden">
+          <Card className="h-[calc(100vh-160px)] min-h-[480px] max-h-[720px] flex flex-col justify-between p-0 overflow-hidden">
             {/* Chat Header */}
-            <div className="p-4 border-b border-slate-800 bg-slate-900/60 flex items-center justify-between">
+            <div className="p-3.5 border-b border-slate-800 bg-slate-900/60 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-violet-600/20 text-violet-400 flex items-center justify-center border border-violet-500/30">
                   <Bot className="w-5 h-5" />
@@ -78,7 +78,7 @@ export default function TutorPage() {
                   </p>
                 </div>
               </div>
-              <Badge variant="cyan">Gemini 1.5 Pro</Badge>
+              <Badge variant="cyan">Gemini 2.5 Flash</Badge>
             </div>
 
             {/* Chat Messages Stream */}
@@ -97,7 +97,7 @@ export default function TutorPage() {
                     )}
                     <div className="space-y-2 max-w-[85%]">
                       <div
-                        className={`p-4 rounded-2xl text-sm leading-relaxed ${
+                        className={`p-3.5 rounded-2xl text-sm leading-relaxed ${
                           isAI
                             ? 'bg-slate-900 border border-slate-800 text-slate-100'
                             : 'bg-violet-600 text-white rounded-br-none'
@@ -144,13 +144,13 @@ export default function TutorPage() {
             </div>
 
             {/* Input Form */}
-            <form onSubmit={handleSend} className="p-3 border-t border-slate-800 bg-slate-900/60 flex items-center gap-2">
+            <form onSubmit={handleSend} className="p-3 border-t border-slate-800 bg-slate-900/60 flex items-center gap-2 shrink-0">
               <input
                 type="text"
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 placeholder="Tire uma dúvida jurídica ou peça um resumo do edital..."
-                className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500"
+                className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs md:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500"
               />
               <Button type="submit" size="md" disabled={sendMessageMutation.isPending}>
                 <Send className="w-4 h-4" />
@@ -161,12 +161,12 @@ export default function TutorPage() {
 
         {/* Right Pane: Mind Map Canvas */}
         <div
-          className={`space-y-4 ${
+          className={`w-full ${
             mobileTab === 'chat' ? 'hidden md:block' : 'block'
           }`}
         >
-          <Card className="h-[640px] flex flex-col p-4 bg-slate-950/60 border border-slate-800">
-            <CardHeader className="p-0 mb-4">
+          <Card className="h-[calc(100vh-160px)] min-h-[480px] max-h-[720px] flex flex-col p-4 bg-slate-950/60 border border-slate-800">
+            <CardHeader className="p-0 mb-3 shrink-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <GitFork className="w-5 h-5 text-cyan-400" />
@@ -174,17 +174,17 @@ export default function TutorPage() {
                 </div>
                 <Badge variant="cyan">Hierarquia Visual</Badge>
               </div>
-              <CardDescription>
-                Conceitos extraídos do seu PDF de Direito Constitucional.
+              <CardDescription className="text-xs">
+                Conceitos extraídos dos seus materiais de estudo.
               </CardDescription>
             </CardHeader>
 
             {/* Mind Map Interactive Tree Canvas */}
-            <div className="flex-1 rounded-2xl bg-slate-900/80 border border-slate-800 p-6 overflow-auto flex flex-col justify-center items-center space-y-6">
+            <div className="flex-1 rounded-2xl bg-slate-900/80 border border-slate-800 p-4 md:p-6 overflow-auto flex flex-col justify-center items-center space-y-6">
               {tutorData.mindMapNodes.map((root) => (
                 <div key={root.id} className="w-full flex flex-col items-center space-y-6">
                   {/* Root Node */}
-                  <div className="px-6 py-3 rounded-2xl bg-violet-600 text-white font-bold text-sm shadow-lg shadow-violet-600/30 border border-violet-400/40 animate-pulse">
+                  <div className="px-6 py-2.5 rounded-2xl bg-violet-600 text-white font-bold text-xs md:text-sm shadow-lg shadow-violet-600/30 border border-violet-400/40 animate-pulse text-center">
                     {root.label}
                   </div>
 
@@ -192,15 +192,15 @@ export default function TutorPage() {
                   <div className="w-0.5 h-6 bg-slate-700" />
 
                   {/* Children Row */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
                     {root.children?.map((child) => (
                       <div
                         key={child.id}
-                        className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2 hover:border-cyan-500/50 transition-all cursor-pointer group"
+                        className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5 hover:border-cyan-500/50 transition-all cursor-pointer group"
                         onClick={() => toast.info(`Tópico selecionado: ${child.label}`)}
                       >
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-cyan-300">{child.category}</span>
+                          <span className="text-[11px] font-semibold text-cyan-300">{child.category}</span>
                           <Sparkles className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-400" />
                         </div>
                         <p className="text-xs text-slate-200 font-medium">{child.label}</p>

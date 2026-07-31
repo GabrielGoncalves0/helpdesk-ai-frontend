@@ -1,9 +1,9 @@
 'use client';
 
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, FolderKanban, Bot, Sparkles, HelpCircle, GraduationCap, LogOut } from 'lucide-react';
+import { LayoutDashboard, FolderKanban, FileSpreadsheet, Bot, Sparkles, HelpCircle, GraduationCap, LogOut, User, ChevronDown, Key } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useAuth } from '@/context/auth-context';
@@ -16,15 +16,28 @@ interface AppShellProps {
 
 const navItems = [
   { label: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { label: 'Materiais & PDFs', href: '/materials', icon: FolderKanban },
+  { label: 'Central de Conteúdo', href: '/materials', icon: FolderKanban },
   { label: 'Tutor IA & Mapa', href: '/tutor', icon: Bot },
-  { label: 'Flashcards (Anki)', href: '/flashcards', icon: Sparkles },
+  { label: 'Flashcards SM-2', href: '/flashcards', icon: Sparkles },
   { label: 'Simulados Bancas', href: '/simulados', icon: HelpCircle },
 ];
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const { user, logout, isAuthenticated } = useAuth();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // If on login page, do not render header/navigation shell
   if (pathname === '/login') {
@@ -71,28 +84,68 @@ export function AppShell({ children }: AppShellProps) {
           })}
         </nav>
 
-        {/* User Profile & Logout */}
-        <div className="flex items-center gap-3">
+        {/* User Profile Dropdown Menu */}
+        <div className="flex items-center gap-3" ref={dropdownRef}>
           {isAuthenticated && user && (
-            <div className="flex items-center gap-3 pl-3 border-l border-slate-800">
-              <div className="hidden sm:flex flex-col items-end">
-                <span className="text-xs font-semibold text-slate-200">{user.name}</span>
-                <Badge variant="purple" className="text-[10px] py-0">
-                  {user.role === 'ADMIN' ? 'Plano VIP' : 'Estudante'}
-                </Badge>
-              </div>
+            <div className="relative pl-3 border-l border-slate-800">
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="flex items-center gap-2.5 p-1.5 rounded-2xl hover:bg-slate-800/60 transition-all duration-200 cursor-pointer group"
+              >
+                <div className="hidden sm:flex flex-col items-center">
+                  <span className="text-xs font-semibold text-slate-200 group-hover:text-violet-300 transition-colors">
+                    {user.name}
+                  </span>
+                  <Badge variant="purple" className="text-[10px] py-0 px-2 w-full justify-center text-center">
+                    {user.role === 'ADMIN' ? 'Plano VIP' : 'Estudante'}
+                  </Badge>
+                </div>
+                <div className="w-8 h-8 rounded-xl bg-violet-600/20 text-violet-400 flex items-center justify-center border border-violet-500/30 group-hover:border-violet-400">
+                  <User className="w-4 h-4" />
+                </div>
+                <ChevronDown className={cn('w-3.5 h-3.5 text-slate-400 transition-transform duration-200', isMenuOpen && 'rotate-180')} />
+              </button>
 
-              <Tooltip content="Encerrar Sessão" position="left">
-                <Button
-                  onClick={logout}
-                  variant="ghost"
-                  size="sm"
-                  className="text-slate-400 hover:text-red-400 hover:bg-red-950/30"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span className="hidden sm:inline text-xs ml-1">Sair</span>
-                </Button>
-              </Tooltip>
+              {/* Animated Dropdown Menu */}
+              {isMenuOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-slate-900 border border-violet-500/30 rounded-2xl p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1">
+                  <div className="p-2 border-b border-slate-800 mb-1">
+                    <p className="text-xs font-bold text-white">{user.name}</p>
+                    <p className="text-[11px] text-slate-400 truncate">{user.email}</p>
+                  </div>
+
+                  <Link
+                    href="/profile"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-200 hover:bg-violet-950/40 hover:text-violet-300 rounded-xl transition-all font-medium"
+                  >
+                    <User className="w-4 h-4 text-violet-400" />
+                    <span>Meu Perfil & Configurações</span>
+                  </Link>
+
+                  <Link
+                    href="/profile"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-200 hover:bg-violet-950/40 hover:text-violet-300 rounded-xl transition-all font-medium"
+                  >
+                    <Key className="w-4 h-4 text-cyan-400" />
+                    <span>Alterar Minha Senha</span>
+                  </Link>
+
+                  <div className="border-t border-slate-800 pt-1">
+                    <button
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        logout();
+                      }}
+                      className="flex items-center gap-2.5 px-3 py-2 text-xs text-red-400 hover:bg-red-950/30 rounded-xl transition-all font-medium w-full text-left cursor-pointer"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Sair da Conta</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

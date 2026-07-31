@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { useDashboardData } from '@/services/mock-study-data';
+import { useDashboardData } from '@/services/dashboard-service';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -61,7 +61,7 @@ export default function DashboardPage() {
           <CardContent className="space-y-3">
             <div className="text-3xl font-bold text-white">{dashboard.accuracyRate}%</div>
             <Progress value={dashboard.accuracyRate} barClassName="bg-emerald-500" />
-            <p className="text-xs text-slate-400">Evolução de +8% em relação ao mês anterior</p>
+            <p className="text-xs text-slate-400">Evolução baseada nos seus simulados</p>
           </CardContent>
         </Card>
 
@@ -74,7 +74,7 @@ export default function DashboardPage() {
           <CardContent className="space-y-3">
             <div className="text-3xl font-bold text-white">{dashboard.completedSimuladosCount}</div>
             <div className="flex items-center gap-2">
-              <Badge variant="cyan">Bancas FGV & Cebraspe</Badge>
+              <Badge variant="cyan">Questões Respondidas</Badge>
             </div>
             <p className="text-xs text-slate-400">Desempenho gravado no banco em tempo real</p>
           </CardContent>
@@ -87,8 +87,8 @@ export default function DashboardPage() {
             <BookOpen className="w-5 h-5 text-violet-400" />
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="text-3xl font-bold text-white">{dashboard.editalCoveragePercentage || 45}%</div>
-            <Progress value={dashboard.editalCoveragePercentage || 45} barClassName="bg-violet-500" />
+            <div className="text-3xl font-bold text-white">{dashboard.editalCoveragePercentage || 0}%</div>
+            <Progress value={dashboard.editalCoveragePercentage || 0} barClassName="bg-violet-500" />
             <p className="text-xs text-slate-400">Tópicos do edital concluídos/revisados</p>
           </CardContent>
         </Card>

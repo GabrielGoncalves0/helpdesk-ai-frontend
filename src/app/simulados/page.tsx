@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useSimuladosData } from '@/services/mock-study-data';
+import { useSimuladosData } from '@/services/simulados-service';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';

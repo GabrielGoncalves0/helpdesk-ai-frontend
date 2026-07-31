@@ -1,19 +1,26 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useFlashcardsData } from '@/services/mock-study-data';
-import { Card, CardTitle, CardDescription } from '@/components/ui/card';
+import React, { useState, useMemo } from 'react';
+import { useFlashcardsData } from '@/services/flashcards-service';
+import { Card, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/toast';
-import { Sparkles, RotateCw, CheckCircle2, RotateCcw, ThumbsUp, Flame, Loader2 } from 'lucide-react';
+import { Sparkles, RotateCw, CheckCircle2, RotateCcw, ThumbsUp, Flame, Loader2, Filter, SlidersHorizontal } from 'lucide-react';
+import { CustomSelect } from '@/components/ui/custom-select';
 
 export default function FlashcardsPage() {
-  const { data: deck, isLoading, reviewMutation } = useFlashcardsData();
+  const { data: fullDeck, isLoading, reviewMutation } = useFlashcardsData();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
 
-  if (isLoading || !deck) {
+  // Filter Configuration State
+  const [selectedSubject, setSelectedSubject] = useState('TODAS');
+  const [selectedTopic, setSelectedTopic] = useState('TODOS');
+  const [cardQuantity, setCardQuantity] = useState(10);
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
+
+  if (isLoading || !fullDeck) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex items-center gap-3 text-slate-400">
@@ -24,7 +31,38 @@ export default function FlashcardsPage() {
     );
   }
 
-  const currentCard = deck[currentIndex];
+  // Derive dynamic filter options from real data
+  const subjectOptions = useMemo(() => {
+    const uniqueSubjects = [...new Set(fullDeck.map((c) => c.subject).filter(Boolean))];
+    return [
+      { value: 'TODAS', label: 'Todas as Matérias' },
+      ...uniqueSubjects.map((s) => ({ value: s, label: s })),
+    ];
+  }, [fullDeck]);
+
+  const topicOptions = useMemo(() => {
+    const uniqueTopics = [...new Set(fullDeck.map((c) => c.front.split('\n')[0].substring(0, 40)).filter(Boolean))];
+    return [
+      { value: 'TODOS', label: 'Todos os Tópicos' },
+      ...uniqueTopics.slice(0, 10).map((t) => ({ value: t, label: t })),
+    ];
+  }, [fullDeck]);
+
+  // Filter Deck by Subject & Topic
+  const filteredDeck = fullDeck
+    .filter((card) => {
+      const matchSubject =
+        selectedSubject === 'TODAS' ||
+        card.subject.toLowerCase().includes(selectedSubject.toLowerCase());
+      const matchTopic =
+        selectedTopic === 'TODOS' ||
+        card.front.toLowerCase().includes(selectedTopic.toLowerCase()) ||
+        card.subject.toLowerCase().includes(selectedTopic.toLowerCase());
+      return matchSubject && matchTopic;
+    })
+    .slice(0, cardQuantity);
+
+  const currentCard = filteredDeck[currentIndex];
 
   const handleRating = (rating: 'errei' | 'dificil' | 'bom' | 'facil') => {
     if (!currentCard) return;
@@ -42,8 +80,10 @@ export default function FlashcardsPage() {
         onSuccess: () => {
           toast.success(labelMap[rating]);
           setIsFlipped(false);
-          if (currentIndex >= deck.length - 1) {
+          if (currentIndex >= filteredDeck.length - 1) {
             setCurrentIndex(0);
+          } else {
+            setCurrentIndex((prev) => prev + 1);
           }
         },
       }
@@ -51,19 +91,99 @@ export default function FlashcardsPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in duration-300">
-      {/* Top Deck Info Header */}
-      <div className="flex items-center justify-between">
+    <div className="max-w-3xl mx-auto space-y-6 animate-in fade-in duration-300">
+      {/* Header & Filter Toggle */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
         <div>
           <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-            Revisão Ativa <Sparkles className="w-5 h-5 text-violet-400" />
+            Revisão Ativa SM-2 <Sparkles className="w-5 h-5 text-violet-400" />
           </h2>
-          <p className="text-sm text-slate-400">Algoritmo SuperMemo SM-2 para memorização de longo prazo.</p>
+          <p className="text-sm text-slate-400">Personalize sua sessão por matéria, tópico ou quantidade.</p>
         </div>
-        <Badge variant="purple" className="px-3 py-1 text-sm">
-          {deck.length} Cartões Restantes
-        </Badge>
+
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsConfigOpen(!isConfigOpen)}
+            className="text-xs border-violet-500/30 text-violet-300 hover:bg-violet-950/40"
+          >
+            <SlidersHorizontal className="w-4 h-4 mr-1.5" />
+            <span>Filtros da Sessão</span>
+          </Button>
+
+          <Badge variant="purple" className="px-3 py-1 text-sm">
+            {filteredDeck.length} Cards Agendados
+          </Badge>
+        </div>
       </div>
+
+      {/* Filter Configuration Panel */}
+      {isConfigOpen && (
+        <Card className="glass-panel border-violet-500/30 bg-slate-900/80 p-5 space-y-4 animate-in fade-in duration-200">
+          <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+            <Filter className="w-4 h-4 text-violet-400" />
+            <h3 className="text-sm font-bold text-white">Configurar Sessão de Estudo</h3>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Filter by Subject */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300">Matéria</label>
+              <CustomSelect
+                value={selectedSubject}
+                onChange={(val) => {
+                  setSelectedSubject(val);
+                  setCurrentIndex(0);
+                }}
+                options={subjectOptions}
+              />
+            </div>
+
+            {/* Filter by Specific Topic */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300">Tópico Específico</label>
+              <CustomSelect
+                value={selectedTopic}
+                onChange={(val) => {
+                  setSelectedTopic(val);
+                  setCurrentIndex(0);
+                }}
+                options={topicOptions}
+              />
+            </div>
+
+            {/* Quantity per Session */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300">Quantidade de Cards</label>
+              <CustomSelect
+                value={cardQuantity}
+                onChange={(val) => {
+                  setCardQuantity(Number(val));
+                  setCurrentIndex(0);
+                }}
+                options={[
+                  { value: 5, label: '5 Flashcards' },
+                  { value: 10, label: '10 Flashcards' },
+                  { value: 15, label: '15 Flashcards' },
+                  { value: 20, label: '20 Flashcards' },
+                  { value: 30, label: '30 Flashcards' },
+                ]}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <Button
+              size="sm"
+              onClick={() => setIsConfigOpen(false)}
+              className="bg-violet-600 hover:bg-violet-500 text-white text-xs px-4"
+            >
+              Aplicar Filtros e Iniciar
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {currentCard ? (
         <div className="space-y-6">
@@ -95,14 +215,14 @@ export default function FlashcardsPage() {
                 </div>
 
                 <div className="text-center text-xs text-slate-500">
-                  Pressione o cartão ou barra de espaço para ver a resposta
+                  Cartão {currentIndex + 1} de {filteredDeck.length} • Pressione para ver a resposta
                 </div>
               </div>
 
               {/* Back Side */}
               <div className="absolute inset-0 w-full h-full glass-panel rounded-3xl p-8 flex flex-col justify-between border-cyan-500/30 rotate-y-180 backface-hidden shadow-2xl bg-slate-900/90">
                 <div className="flex items-center justify-between">
-                  <Badge variant="cyan">Resposta & Justificativa</Badge>
+                  <Badge variant="cyan">Resposta & Fundamentação</Badge>
                   <span className="text-xs text-cyan-400">Gabarito Oficial</span>
                 </div>
 
@@ -179,10 +299,21 @@ export default function FlashcardsPage() {
       ) : (
         <Card className="text-center py-12 space-y-4">
           <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto animate-bounce" />
-          <CardTitle>Meta Diária Concluída!</CardTitle>
+          <CardTitle>Sessão de Flashcards Concluída!</CardTitle>
           <CardDescription className="max-w-md mx-auto">
-            Você revisou todos os flashcards agendados para hoje. O algoritmo SM-2 continuará monitorando sua curva de esquecimento.
+            Você revisou todos os cartões desta seleção ({filteredDeck.length} cards). O algoritmo SM-2 continuará monitorando sua retenção de memória.
           </CardDescription>
+          <Button
+            onClick={() => {
+              setSelectedSubject('TODAS');
+              setSelectedTopic('TODOS');
+              setCurrentIndex(0);
+            }}
+            variant="outline"
+            className="text-xs"
+          >
+            Reiniciar com Todos os Cards
+          </Button>
         </Card>
       )}
     </div>

@@ -1,28 +1,67 @@
+import axios from 'axios';
 import Cookies from 'js-cookie';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = Cookies.get('auth_token');
-
-  const headers: Record<string, string> = {
+export const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
     'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string>),
-  };
+  },
+});
 
+// Interceptor to automatically attach JWT token from cookies
+api.interceptors.request.use((config) => {
+  const token = Cookies.get('token');
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    config.headers.Authorization = `Bearer ${token}`;
   }
+  return config;
+});
 
-  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
+// Interceptor to unwrap data and handle API errors cleanly
+api.interceptors.response.use(
+  (response) => response.data,
+  (error) => {
+    const message = error.response?.data?.message || error.message || 'Erro na requisição';
+    return Promise.reject(new Error(message));
+  }
+);
+
+// Helper for multipart/form-data uploads
+export const uploadApi = axios.create({
+  baseURL: API_BASE_URL,
+});
+
+uploadApi.interceptors.request.use((config) => {
+  const token = Cookies.get('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+uploadApi.interceptors.response.use(
+  (response) => response.data,
+  (error) => {
+    const message = error.response?.data?.message || error.message || 'Erro no envio do arquivo';
+    return Promise.reject(new Error(message));
+  }
+);
+
+// Backward compatibility helpers
+export async function apiFetch<T>(endpoint: string, options: any = {}): Promise<T> {
+  const method = (options.method || 'GET').toLowerCase();
+  const data = options.body ? (typeof options.body === 'string' ? JSON.parse(options.body) : options.body) : undefined;
+  const result = await api.request({
+    url: endpoint,
+    method,
+    data,
   });
+  return result as T;
+}
 
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || `Erro na requisição HTTP ${res.status}`);
-  }
-
-  return res.json();
+export async function apiUploadFetch<T>(endpoint: string, formData: FormData): Promise<T> {
+  const result = await uploadApi.post(endpoint, formData);
+  return result as T;
 }
