@@ -80,10 +80,10 @@ export default function ProfilePage() {
         <Card className="glass-panel border-violet-500/20 bg-slate-900/60 flex flex-col justify-between">
           <CardHeader className="text-center pb-2">
             <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-violet-600 to-indigo-500 text-white flex items-center justify-center font-bold text-xl shadow-xl shadow-violet-900/40 border border-violet-400/30 mx-auto mb-2">
-              {user?.name?.[0] || 'G'}
+              {user?.name?.[0] || 'U'}
             </div>
-            <CardTitle className="text-base text-white">{user?.name || 'Gabriel Gonçalves'}</CardTitle>
-            <CardDescription className="text-xs text-slate-400">{user?.email || 'bie.gabriel1@outlook.com'}</CardDescription>
+            <CardTitle className="text-base text-white">{user?.name || 'Usuário'}</CardTitle>
+            <CardDescription className="text-xs text-slate-400">{user?.email || ''}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 pt-2">
             <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2 text-center">

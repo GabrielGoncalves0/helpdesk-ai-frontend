@@ -5,6 +5,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -12,9 +13,9 @@ export const api = axios.create({
 
 // Interceptor to automatically attach JWT token from cookies
 api.interceptors.request.use((config) => {
-  const token = Cookies.get('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const token = Cookies.get('auth_token') || Cookies.get('token');
+  if (token && config.headers) {
+    config.headers.set('Authorization', `Bearer ${token}`);
   }
   return config;
 });
@@ -23,6 +24,13 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
+    if (error.response?.status === 401) {
+      Cookies.remove('auth_token', { path: '/' });
+      Cookies.remove('token', { path: '/' });
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
     const message = error.response?.data?.message || error.message || 'Erro na requisição';
     return Promise.reject(new Error(message));
   }
@@ -31,12 +39,13 @@ api.interceptors.response.use(
 // Helper for multipart/form-data uploads
 export const uploadApi = axios.create({
   baseURL: API_BASE_URL,
+  withCredentials: true,
 });
 
 uploadApi.interceptors.request.use((config) => {
-  const token = Cookies.get('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const token = Cookies.get('auth_token') || Cookies.get('token');
+  if (token && config.headers) {
+    config.headers.set('Authorization', `Bearer ${token}`);
   }
   return config;
 });
@@ -44,6 +53,13 @@ uploadApi.interceptors.request.use((config) => {
 uploadApi.interceptors.response.use(
   (response) => response.data,
   (error) => {
+    if (error.response?.status === 401) {
+      Cookies.remove('auth_token', { path: '/' });
+      Cookies.remove('token', { path: '/' });
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
     const message = error.response?.data?.message || error.message || 'Erro no envio do arquivo';
     return Promise.reject(new Error(message));
   }

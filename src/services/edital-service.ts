@@ -18,6 +18,7 @@ export interface EditalData {
   rulesSummary: string;
   coveragePercentage: number;
   topics: EditalTopic[];
+  cargos?: { id: string; name: string; vacancies?: number; salary?: string }[];
 }
 
 export function useEditalData() {

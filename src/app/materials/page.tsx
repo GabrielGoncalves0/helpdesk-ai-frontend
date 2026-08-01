@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useMaterialsData } from '@/services/materials-service';
+import { useMaterialsData, useBancasData } from '@/services/materials-service';
 import { useEditalData, EditalData } from '@/services/edital-service';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,7 @@ interface PreviewData {
 export default function MaterialsPage() {
   const { data: materials, isLoading: isMaterialsLoading, realPdfUploadMutation, deleteMaterialMutation } = useMaterialsData();
   const { data: editalList, isLoading: isEditalLoading, updateTopicStatusMutation, analyzeEditalMutation } = useEditalData();
+  const { data: bancas } = useBancasData();
   
   const [activeTab, setActiveTab] = useState<'files' | 'generator' | 'edital'>('files');
   const [selectedMaterialId, setSelectedMaterialId] = useState<string | null>(null);
@@ -37,6 +38,15 @@ export default function MaterialsPage() {
   const [selectedEditalFile, setSelectedEditalFile] = useState<File | null>(null);
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState('TODAS');
 
+  // Metadata Linkage State for Upload
+  const [uploadEditalId, setUploadEditalId] = useState<string>('');
+  const [uploadBanca, setUploadBanca] = useState<string>('FGV');
+
+  // Cargo Container RAG Batch Analysis State
+  const [selectedCargoName, setSelectedCargoName] = useState<string>('Escrevente Técnico Judiciário');
+  const [isAnalyzingBatchRAG, setIsAnalyzingBatchRAG] = useState<boolean>(false);
+  const [ragBatchResult, setRagBatchResult] = useState<any | null>(null);
+
   // AI Generator Preview Flow State
   const [aiSubject, setAiSubject] = useState('');
   const [aiTopic, setAiTopic] = useState('');
@@ -44,20 +54,50 @@ export default function MaterialsPage() {
   const [isConfirmingLoading, setIsConfirmingLoading] = useState(false);
   const [previewData, setPreviewData] = useState<PreviewData | null>(null);
 
+  const handleRunCargoRAGAnalysis = async () => {
+    setIsAnalyzingBatchRAG(true);
+    toast.info(`Iniciando varredura RAG autônoma nos vetores do cargo "${selectedCargoName}"...`);
+
+    try {
+      const res = await apiFetch<any>('/materials/cargo/analyze-batch', {
+        method: 'POST',
+        body: JSON.stringify({
+          editalId: uploadEditalId || undefined,
+          cargoName: selectedCargoName,
+          examiner: uploadBanca,
+        }),
+      });
+
+      setRagBatchResult(res);
+      setIsAnalyzingBatchRAG(false);
+      toast.success(`🎉 Varredura concluída! Lote de Flashcards e Mapa Mental gerados para o cargo "${selectedCargoName}"!`);
+    } catch (err: any) {
+      setIsAnalyzingBatchRAG(false);
+      toast.error(`Erro ao executar varredura RAG: ${err.message || 'Falha de conexão'}`);
+    }
+  };
+
   // REAL PDF UPLOAD: Uploads real PDF file buffer to NestJS backend for pdf-parse & gemini-embedding-2 vectorization
   const handleRealPdfUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     toast.info(`Iniciando upload e extração de texto do PDF "${file.name}"...`);
-    realPdfUploadMutation.mutate(file, {
-      onSuccess: () => {
-        toast.success(`✨ PDF "${file.name}" processado, vetores gerados via Gemini Embedding 2 e salvos no PostgreSQL!`);
+    realPdfUploadMutation.mutate(
+      {
+        file,
+        editalId: uploadEditalId || undefined,
+        examiner: uploadBanca,
       },
-      onError: (err: any) => {
-        toast.error(`Erro ao vetorizar PDF: ${err.message}`);
-      },
-    });
+      {
+        onSuccess: () => {
+          toast.success(`✨ PDF "${file.name}" processado, vetores gerados via Gemini Embedding 2 e salvos no PostgreSQL!`);
+        },
+        onError: (err: any) => {
+          toast.error(`Erro ao vetorizar PDF: ${err.message}`);
+        },
+      }
+    );
   };
 
   // REAL EDITAL AI ANALYSIS: Parses Edital PDF or text using Gemini 2.5 Flash
@@ -252,6 +292,146 @@ export default function MaterialsPage() {
       {/* TAB 1: MEUS ARQUIVOS & UPLOAD DE PDF REAL */}
       {activeTab === 'files' && (
         <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Metadata Linkage & Cargo Container Selection Bar */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-5 rounded-3xl bg-slate-900/80 border border-violet-500/30">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                <FileSpreadsheet className="w-3.5 h-3.5 text-violet-400" /> Edital Vinculado
+              </label>
+              <CustomSelect
+                value={uploadEditalId}
+                onChange={(val) => setUploadEditalId(val)}
+                options={[
+                  { value: '', label: 'Geral (Sem edital específico)' },
+                  ...(editalList || []).map((e) => ({ value: e.id, label: `${e.concursoName} (${e.examiner})` })),
+                ]}
+                className="border-slate-700"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-cyan-400" /> Cargo Alvo
+              </label>
+              <CustomSelect
+                value={selectedCargoName}
+                onChange={(val) => setSelectedCargoName(val)}
+                options={
+                  (activeEdital.cargos && activeEdital.cargos.length > 0)
+                    ? activeEdital.cargos.map((c) => ({ value: c.name, label: c.name }))
+                    : [
+                        { value: 'Escrevente Técnico Judiciário', label: 'Escrevente Técnico Judiciário' },
+                        { value: 'Analista Judiciário', label: 'Analista Judiciário' },
+                        { value: 'Oficial de Justiça', label: 'Oficial de Justiça' },
+                      ]
+                }
+                className="border-slate-700"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Banca Examinadora
+              </label>
+              <CustomSelect
+                value={uploadBanca}
+                onChange={(val) => setUploadBanca(val)}
+                options={
+                  (bancas && bancas.length > 0)
+                    ? bancas.map((b) => ({ value: b.slug || b.name, label: b.name }))
+                    : [
+                        { value: 'fgv', label: 'FGV (Fundação Getulio Vargas)' },
+                        { value: 'cebraspe', label: 'Cebraspe / CESPE' },
+                        { value: 'fcc', label: 'FCC (Fundação Carlos Chagas)' },
+                      ]
+                }
+                className="border-slate-700"
+              />
+            </div>
+          </div>
+
+          {/* Autonomous RAG Container Action Banner */}
+          <div className="p-5 rounded-3xl bg-gradient-to-r from-violet-950/60 via-slate-900 to-cyan-950/50 border border-cyan-500/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1 max-w-xl">
+              <Badge variant="cyan" className="mb-1">
+                <Sparkles className="w-3 h-3 mr-1 text-cyan-400" /> RAG Autônomo por Cargo
+              </Badge>
+              <h3 className="text-base font-bold text-white">
+                Varredura de Materiais do Cargo: <span className="text-cyan-400">{selectedCargoName}</span>
+              </h3>
+              <p className="text-xs text-slate-300">
+                A IA analisa todos os PDFs vetorizados deste container de cargo, identifica os tópicos do edital e gera resumos, flashcards e mapa mental autônomo com 1 clique.
+              </p>
+            </div>
+
+            <Button
+              onClick={handleRunCargoRAGAnalysis}
+              disabled={isAnalyzingBatchRAG}
+              size="lg"
+              className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs px-6 py-3 shadow-lg shadow-cyan-600/30 shrink-0"
+            >
+              {isAnalyzingBatchRAG ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  <span>Vetorizando & Mapeando Cargo...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2 text-cyan-300" />
+                  <span>Mapear e Enriquecer Conteúdo do Cargo com IA</span>
+                </>
+              )}
+            </Button>
+          </div>
+
+          {/* RAG Batch Result Modal / Drawer */}
+          {ragBatchResult && (
+            <Card className="glass-panel border-cyan-500/50 p-6 space-y-4 animate-in fade-in duration-300 bg-slate-950/90">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                  <h3 className="text-sm font-bold text-white">
+                    Resultado da Varredura RAG para {selectedCargoName}
+                  </h3>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setRagBatchResult(null)} className="text-xs">
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <p className="text-xs md:text-sm text-slate-200 leading-relaxed">
+                {ragBatchResult.summaryText}
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-2">
+                  <span className="text-xs font-semibold text-cyan-300">Tópicos Identificados no RAG</span>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {ragBatchResult.coveredTopics?.map((t: string, idx: number) => (
+                      <Badge key={idx} variant="purple" className="text-[11px]">
+                        {t}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-2">
+                  <span className="text-xs font-semibold text-emerald-300">Artefatos Gerados Automaticamente</span>
+                  <div className="flex flex-col gap-2 pt-1">
+                    <Link href="/flashcards" className="text-xs text-violet-300 hover:underline flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                      <span>Lote de Flashcards: <b>{ragBatchResult.batchCreated?.title}</b></span>
+                    </Link>
+                    <Link href="/mind-maps" className="text-xs text-cyan-300 hover:underline flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Mapa Mental: <b>{ragBatchResult.mindMapCreated?.title}</b></span>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          )}
+
           {/* Animated Dropzone for REAL PDF File Upload */}
           <label className="relative flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-violet-500/30 rounded-3xl cursor-pointer bg-slate-900/40 hover:bg-slate-900/80 hover:border-violet-500/60 transition-all duration-200 group">
             <div className="flex flex-col items-center justify-center p-4 text-center space-y-1.5">
@@ -276,7 +456,7 @@ export default function MaterialsPage() {
             <input type="file" accept=".pdf,.docx,.txt" className="hidden" onChange={handleRealPdfUpload} disabled={realPdfUploadMutation.isPending} />
           </label>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Table */}
             <Card className="lg:col-span-2">
               <CardHeader>
@@ -284,54 +464,68 @@ export default function MaterialsPage() {
                 <CardDescription>Clique em um arquivo para disparar ações rápidas de IA.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {materials.map((mat) => {
-                  const isSelected = selectedMaterialId === mat.id;
-                  return (
-                    <div
-                      key={mat.id}
-                      onClick={() => setSelectedMaterialId(mat.id)}
-                      className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-200 cursor-pointer ${
-                        isSelected
-                          ? 'bg-violet-950/30 border-violet-500/50 shadow-md shadow-violet-950/40'
-                          : 'bg-slate-900/50 border-slate-800 hover:border-slate-700'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3.5">
-                        <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-300">
-                          <FileText className="w-5 h-5 text-violet-400" />
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-semibold text-slate-100 line-clamp-1">{mat.title}</h4>
-                          <p className="text-xs text-slate-400">
-                            {mat.fileSize} • Upload {mat.uploadedAt}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        {mat.status === 'Pronto' && (
-                          <Badge variant="success">
-                            <CheckCircle2 className="w-3 h-3 mr-1" />
-                            Vetorizado (RAG)
-                          </Badge>
-                        )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="p-1.5 h-8 text-rose-400 hover:bg-rose-950/40 hover:text-rose-300"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteMaterialMutation.mutate(mat.id, {
-                              onSuccess: () => toast.success('Material removido.'),
-                            });
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                {materials.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center p-8 text-center space-y-4 my-4 bg-slate-900/40 rounded-3xl border border-slate-800">
+                    <div className="w-14 h-14 rounded-2xl bg-violet-950/60 border border-violet-500/40 flex items-center justify-center text-violet-400 shadow-lg shadow-violet-950/40">
+                      <FileText className="w-7 h-7" />
                     </div>
-                  );
-                })}
+                    <div className="max-w-md space-y-1.5">
+                      <h4 className="text-base font-bold text-white">Nenhum Material Importado</h4>
+                      <p className="text-xs text-slate-400 leading-relaxed">
+                        Faça upload de apostilas em PDF ou leis secas no campo acima para vetorização semântica e enriquecimento RAG (`pgvector`).
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  materials.map((mat) => {
+                    const isSelected = selectedMaterialId === mat.id;
+                    return (
+                      <div
+                        key={mat.id}
+                        onClick={() => setSelectedMaterialId(mat.id)}
+                        className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-200 cursor-pointer ${
+                          isSelected
+                            ? 'bg-violet-950/30 border-violet-500/50 shadow-md shadow-violet-950/40'
+                            : 'bg-slate-900/50 border-slate-800 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3.5">
+                          <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-300">
+                            <FileText className="w-5 h-5 text-violet-400" />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-semibold text-slate-100 line-clamp-1">{mat.title}</h4>
+                            <p className="text-xs text-slate-400">
+                              {mat.fileSize} • Upload {mat.uploadedAt}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          {mat.status === 'Pronto' && (
+                            <Badge variant="success">
+                              <CheckCircle2 className="w-3 h-3 mr-1" />
+                              Vetorizado (RAG)
+                            </Badge>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="p-1.5 h-8 text-rose-400 hover:bg-rose-950/40 hover:text-rose-300"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteMaterialMutation.mutate(mat.id, {
+                                onSuccess: () => toast.success('Material removido.'),
+                              });
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </CardContent>
             </Card>
 

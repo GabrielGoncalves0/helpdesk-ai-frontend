@@ -51,14 +51,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setIsAuthenticated(false);
           }
         } catch {
-          // If backend is unaccessible or offline, retain fallback user if token present
-          setUser({
-            id: 'user-123',
-            name: 'Gabriel Gonçalves',
-            email: 'estudante@concurso.com',
-            role: 'ADMIN',
-          });
-          setIsAuthenticated(true);
+          // On network error or failed auth, clear stale cookie and state
+          Cookies.remove(AUTH_COOKIE_NAME, { path: '/' });
+          setUser(null);
+          setIsAuthenticated(false);
         }
       }
       setIsLoading(false);

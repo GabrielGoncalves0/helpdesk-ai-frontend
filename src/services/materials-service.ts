@@ -36,9 +36,16 @@ export function useMaterialsData() {
   });
 
   const realPdfUploadMutation = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async (params: { file: File; editalId?: string; cargoId?: string; examiner?: string; concurso?: string } | File) => {
+      const file = params instanceof File ? params : params.file;
       const formData = new FormData();
       formData.append('file', file);
+      if (!(params instanceof File)) {
+        if (params.editalId) formData.append('editalId', params.editalId);
+        if (params.cargoId) formData.append('cargoId', params.cargoId);
+        if (params.examiner) formData.append('examiner', params.examiner);
+        if (params.concurso) formData.append('concurso', params.concurso);
+      }
       const newMat = await uploadApi.post<any, any>('/materials/upload', formData);
       return {
         id: newMat.id,
@@ -116,4 +123,18 @@ export function useMaterialsData() {
     generateAiMaterialMutation,
     deleteMaterialMutation,
   };
+}
+
+export function useBancasData() {
+  return useQuery<{ id: string; name: string; slug: string; styleDescription: string }[]>({
+    queryKey: ['bancasData'],
+    queryFn: async () => {
+      try {
+        const data = await api.get<any, any[]>('/bancas');
+        return Array.isArray(data) ? data : [];
+      } catch {
+        return [];
+      }
+    },
+  });
 }

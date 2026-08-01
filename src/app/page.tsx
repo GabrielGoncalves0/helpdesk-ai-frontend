@@ -220,6 +220,35 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Heatmap de Incidência da Banca Examinadora por Tópico */}
+      <Card className="glass-panel border-cyan-500/30 p-6 space-y-4">
+        <CardHeader className="p-0 space-y-1">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Target className="w-5 h-5 text-cyan-400" />
+              <CardTitle className="text-lg">Heatmap de Incidência da Banca FGV por Tópico</CardTitle>
+            </div>
+            <Badge variant="cyan">Análise Estatística</Badge>
+          </div>
+          <CardDescription>
+            Percentual histórico de cobrança em provas de concursos públicos para priorização de estudo.
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="p-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+          {(dashboard.bancaIncidencia || []).map((item, idx) => (
+            <div key={idx} className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-400">{item.subject}</span>
+                <span className="text-xs font-bold text-cyan-400">{item.weight}% de Incidência</span>
+              </div>
+              <h4 className="text-xs font-bold text-white">{item.topic}</h4>
+              <Progress value={item.weight * 2} barClassName="bg-cyan-500" />
+            </div>
+          ))}
+        </CardContent>
+      </Card>
     </div>
   );
 }

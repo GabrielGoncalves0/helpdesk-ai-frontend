@@ -2,8 +2,8 @@
 
 import React, { ReactNode, useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { LayoutDashboard, FolderKanban, FileSpreadsheet, Bot, Sparkles, HelpCircle, GraduationCap, LogOut, User, ChevronDown, Key } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { LayoutDashboard, FolderKanban, FileSpreadsheet, Bot, Sparkles, HelpCircle, GraduationCap, LogOut, User, ChevronDown, Key, GitFork } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useAuth } from '@/context/auth-context';
@@ -17,7 +17,8 @@ interface AppShellProps {
 const navItems = [
   { label: 'Dashboard', href: '/', icon: LayoutDashboard },
   { label: 'Central de Conteúdo', href: '/materials', icon: FolderKanban },
-  { label: 'Tutor IA & Mapa', href: '/tutor', icon: Bot },
+  { label: 'Tutor IA Especialista', href: '/tutor', icon: Bot },
+  { label: 'Mapas Mentais', href: '/mind-maps', icon: GitFork },
   { label: 'Flashcards SM-2', href: '/flashcards', icon: Sparkles },
   { label: 'Simulados Bancas', href: '/simulados', icon: HelpCircle },
 ];

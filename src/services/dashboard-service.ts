@@ -23,6 +23,7 @@ export interface DashboardData {
   subjectBreakdown?: SubjectBreakdown[];
   weakSubjects: WeakSubject[];
   studyHeatmap: { date: string; level: number }[];
+  bancaIncidencia?: { subject: string; topic: string; weight: number; examiner: string }[];
 }
 
 export function useDashboardData() {
